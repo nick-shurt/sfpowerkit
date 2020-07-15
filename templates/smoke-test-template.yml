@@ -60,7 +60,7 @@ steps:
     displayName: Smoke Test Package Commands
     inputs:
       script: |
-        sfdx sfpowerkit:package:version:info  -u HubOrg
+        sfdx sfpowerkit:package:version:info  -u HubOrg --dev-suspend
         sfdx sfpowerkit:package:version:info  -u HubOrg --json | jq -r .result[0].packageVersionId
 
         sfdx sfpowerkit:package:version:codecoverage -i 04t2s000000LOsVAAW -v HubOrg
