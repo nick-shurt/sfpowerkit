@@ -20,7 +20,13 @@ import * as rimraf from "rimraf";
 import CustomLabelsDiff from "../diff/customLabelsDiff";
 import SharingRuleDiff from "../diff/sharingRuleDiff";
 import WorkflowDiff from "../diff/workflowDiff";
+import XmlUtil from "../../../utils/xmlUtil";
 const jsdiff = require("diff");
+//import { diff, Config, DiffPatcher, formatters } from "jsondiffpatch";
+var sortedJSON = require('sorted-json');
+
+
+import { diff } from "nested-object-diff";
 
 const { execSync } = require("child_process");
 
@@ -75,8 +81,8 @@ export default class OrgDiffImpl {
     SFPowerkit.setStatus("Retrieving metadata");
     await this.retrievePackage(packageobj);
     SFPowerkit.setStatus("Comparing files");
-    this.compare();
-    rimraf.sync("temp_sfpowerkit");
+    await this.compare();
+    //rimraf.sync("temp_sfpowerkit");
     return this.output;
   }
 
@@ -139,14 +145,18 @@ export default class OrgDiffImpl {
     }
   }
 
-  private compare() {
+  private async compare() {
     // let fetchedFiles = FileUtils.getAllFilesSync(`./temp_sfpowerkit/mdapi`, "");
     let fetchedFiles = FileUtils.getAllFilesSync(
-      `./temp_sfpowerkit/force-app`,
+      `./temp_sfpowerkit/source`,
       ""
     );
 
-    this.filesOrFolders.forEach(fileOrFolder => {
+    fs.mkdirSync("temp_sfpowerkit/source_json");
+    fs.mkdirSync("temp_sfpowerkit/remote_json");
+    
+
+    for (let fileOrFolder of this.filesOrFolders) {
       fileOrFolder = path.normalize(fileOrFolder);
 
       let pathExists = fs.existsSync(fileOrFolder);
@@ -154,20 +164,41 @@ export default class OrgDiffImpl {
         let stats = fs.statSync(fileOrFolder);
         if (stats.isFile()) {
           //Process File
-          this.processFile(fileOrFolder, fetchedFiles);
+          await this.processFile(fileOrFolder, fetchedFiles);
         } else if (stats.isDirectory()) {
           //Read files in directory
           let files = FileUtils.getAllFilesSync(fileOrFolder, "");
-          files.forEach(oneFile => {
-            //process file
-            this.processFile(oneFile, fetchedFiles);
-          });
+
+          for (const oneFile of files) {
+            await this.processFile(oneFile, fetchedFiles);
+          }
         }
       }
-    });
+   
+    }
+
+    // this.filesOrFolders.forEach(fileOrFolder => {
+    //   fileOrFolder = path.normalize(fileOrFolder);
+
+    //   let pathExists = fs.existsSync(fileOrFolder);
+    //   if (pathExists) {
+    //     let stats = fs.statSync(fileOrFolder);
+    //     if (stats.isFile()) {
+    //       //Process File
+    //       this.processFile(fileOrFolder, fetchedFiles);
+    //     } else if (stats.isDirectory()) {
+    //       //Read files in directory
+    //       let files = FileUtils.getAllFilesSync(fileOrFolder, "");
+    //       files.forEach(oneFile => {
+    //         //process file
+    //         this.processFile(oneFile, fetchedFiles);
+    //       });
+    //     }
+    //   }
+    // });
   }
 
-  private processFile(localFile: string, fetchedFiles: string[]) {
+  private async processFile(localFile: string, fetchedFiles: string[]) {
     SFPowerkit.log("Compare:  Processing " + localFile, LoggerLevel.DEBUG);
     let metaType = MetadataInfo.getMetadataName(localFile, false);
     let member = MetadataFiles.getMemberNameFromFilepath(localFile, metaType);
@@ -216,47 +247,119 @@ export default class OrgDiffImpl {
       );
     });
 
-    if (foundFile !== undefined) {
-      let contentLocalFile = fs.readFileSync(localFile, "utf8");
-      let contentFetchedFile = fs.readFileSync(foundFile, "utf8");
+    
+    if (foundFile != undefined) {
+      try {
+      
+        let localXMLAsJSON = await XmlUtil.xmlToJSON(localFile);
+        let remoteXMLAsJSON = await XmlUtil.xmlToJSON(foundFile);
 
-      //Normalise line ending on windows
-      let matcherLocal = contentLocalFile.match(CRLF_REGEX);
-      let matcherFetched = contentFetchedFile.match(CRLF_REGEX);
-      let lineEnd = "\n";
-      if (matcherLocal && !matcherFetched) {
-        lineEnd = matcherLocal[0];
-        contentFetchedFile = contentFetchedFile.split(LF_REGEX).join(lineEnd);
+        let localXMLAsJSONSorted  = sortedJSON.sortify(localXMLAsJSON,{
+          sortArray: true,
+          sortKey:true
+        });
+        let remoteXMLAsJSONSorted  = sortedJSON.sortify(remoteXMLAsJSON,{
+          sortArray: true,
+          sortKey:true
+        });
+
+        fs.writeFileSync(path.join("temp_sfpowerkit","source_json",`${metaType}_${member}.json`),JSON.stringify(localXMLAsJSONSorted));
+        fs.writeFileSync(path.join("temp_sfpowerkit","remote_json",`${metaType}_${member}.json`),JSON.stringify(remoteXMLAsJSONSorted));
+        
+      
+        // let conf: Config;
+        // conf = {
+        //   objectHash: function(obj) {
+        //     if (typeof obj._id !== "undefined") {
+        //       return obj._id;
+        //     }
+        //     if (typeof obj.name !== "undefined") {
+        //       return obj.name;
+        //     }
+        //     return JSON.stringify(obj);
+        //   },
+        //   propertyFilter: function(name, context) {
+
+        //     if(context.left[name]==undefined)
+        //       return false;
+ 
+        //    return true;
+        //   },
+        //   arrays: {
+        //     detectMove: false,
+        //     includeValueOnMove:true
+        //   },
+        //   textDiff: {
+        //     minLength: 60
+        //   },
+        //   cloneDiffValues: false
+        // };
+
+    //    var jsondiffpatch = new DiffPatcher(conf);
+        var delta = diff(localXMLAsJSONSorted, remoteXMLAsJSONSorted, { types:['E'] });
+       
+        
+        if(delta.length>0)
+        {
+          console.log(`${metaType}:${member}`.padEnd(100,"."),"Changes Detected");
+          console.log(JSON.stringify(delta));
+        }
+        else
+        {
+          console.log(`${metaType}:${member}`.padEnd(100,"."),"In Sync");
+        }
+         
+
+       
+       
+      } catch (error) {
+        //console.log(error);
       }
-
-      if (
-        !contentLocalFile.endsWith(lineEnd) &&
-        contentFetchedFile.endsWith(lineEnd)
-      ) {
-        contentFetchedFile = contentFetchedFile.substr(
-          0,
-          contentFetchedFile.lastIndexOf(lineEnd)
-        );
-      }
-
-      if (
-        contentLocalFile.endsWith(lineEnd) &&
-        !contentFetchedFile.endsWith(lineEnd)
-      ) {
-        contentFetchedFile = contentFetchedFile + lineEnd;
-      }
-
-      let diffResult = jsdiff.diffLines(contentLocalFile, contentFetchedFile);
-      //Process the diff result add add conflict marker on the files
-      this.processResult(localFile, diffResult);
-    } else {
-      this.output.push({
-        status: "Local Added / Remote Deleted",
-        metadataType: metaType,
-        componentName: member,
-        path: localFile
-      });
     }
+
+    // if (foundFile !== undefined) {
+    //   let contentLocalFile = fs.readFileSync(localFile, "utf8");
+    //   let contentFetchedFile = fs.readFileSync(foundFile, "utf8");
+
+    //   //Normalise line ending on windows
+    //   let matcherLocal = contentLocalFile.match(CRLF_REGEX);
+    //   let matcherFetched = contentFetchedFile.match(CRLF_REGEX);
+    //   let lineEnd = "\n";
+    //   if (matcherLocal && !matcherFetched) {
+    //     lineEnd = matcherLocal[0];
+    //     contentFetchedFile = contentFetchedFile.split(LF_REGEX).join(lineEnd);
+    //   }
+
+    //   if (
+    //     !contentLocalFile.endsWith(lineEnd) &&
+    //     contentFetchedFile.endsWith(lineEnd)
+    //   ) {
+    //     contentFetchedFile = contentFetchedFile.substr(
+    //       0,
+    //       contentFetchedFile.lastIndexOf(lineEnd)
+    //     );
+    //   }
+
+    //   if (
+    //     contentLocalFile.endsWith(lineEnd) &&
+    //     !contentFetchedFile.endsWith(lineEnd)
+    //   ) {
+    //     contentFetchedFile = contentFetchedFile + lineEnd;
+    //   }
+
+    //   //let diffResult = jsdiff.diffLines(contentLocalFile, contentFetchedFile);
+
+    //   //Process the diff result add add conflict marker on the file
+    //  // this.processResult(localFile, diffResult);
+
+    // } else {
+    //   // this.output.push({
+    //   //   status: "Local Added / Remote Deleted",
+    //   //   metadataType: metaType,
+    //   //   componentName: member,
+    //   //   path: localFile
+    //   // });
+    // }
   }
 
   private processResult(
@@ -355,6 +458,48 @@ export default class OrgDiffImpl {
     }
   }
 
+  // Call this function.
+  // The others are helpers for this one.
+  private getDiff(a, b) {
+    var diff = this.isArray(a) ? [] : {};
+    this.recursiveDiff(a, b, diff);
+    return diff;
+  }
+
+  private recursiveDiff(a, b, node) {
+    var checked = [];
+
+    for (var prop in a) {
+      if (typeof b[prop] == "undefined") {
+        this.addNode(prop, "[[removed]]", node);
+      } else if (JSON.stringify(a[prop]) != JSON.stringify(b[prop])) {
+        // if value
+        if (typeof b[prop] != "object" || b[prop] == null) {
+          this.addNode(prop, b[prop], node);
+        } else {
+          // if array
+          if (this.isArray(b[prop])) {
+            this.addNode(prop, [], node);
+            this.recursiveDiff(a[prop], b[prop], node[prop]);
+          }
+          // if object
+          else {
+            this.addNode(prop, {}, node);
+            this.recursiveDiff(a[prop], b[prop], node[prop]);
+          }
+        }
+      }
+    }
+  }
+
+  private addNode(prop, value, parent) {
+    parent[prop] = value;
+  }
+
+  private isArray(obj) {
+    return Object.prototype.toString.call(obj) === "[object Array]";
+  }
+
   private async retrievePackage(packageObj) {
     SFPowerkit.log("Clear temp folder ", LoggerLevel.INFO);
     rimraf.sync("temp_sfpowerkit");
@@ -434,12 +579,15 @@ export default class OrgDiffImpl {
       }`;
 
     fs.writeFileSync("temp_sfpowerkit/sfdx-project.json", sfdxProjectJson);
-    execSync("sfdx force:mdapi:convert -r mdapi -d force-app", {
+    
+    let result = execSync("sfdx force:mdapi:convert -r mdapi -d source", {
       cwd: "temp_sfpowerkit"
     });
 
+    console.log(result.toString());
+
     //Should remove the mdapi folder
-    rimraf.sync("temp_sfpowerkit/mdapi");
-    rimraf.sync("temp_sfpowerkit/unpackaged.zip");
+   rimraf.sync("temp_sfpowerkit/mdapi");
+   rimraf.sync("temp_sfpowerkit/unpackaged.zip");
   }
 }

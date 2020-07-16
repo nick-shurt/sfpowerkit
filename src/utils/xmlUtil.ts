@@ -5,10 +5,10 @@ import * as path from "path";
 import { AnyJson } from "@salesforce/ts-types";
 
 export default class XmlUtil {
-  public static async xmlToJSON(directory: string) {
+  public static async xmlToJSON(pathToFile: string) {
     const parser = new xml2js.Parser({ explicitArray: false });
     const parseString = util.promisify(parser.parseString);
-    let obj = await parseString(fs.readFileSync(path.resolve(directory)));
+    let obj = await parseString(fs.readFileSync(path.resolve(pathToFile)));
     return obj;
   }
   public static jSONToXML(obj: AnyJson) {

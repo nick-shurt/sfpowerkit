@@ -7,7 +7,7 @@ import { SOURCE_EXTENSION_REGEX } from "../../../impl/metadata/metadataInfo";
 import { METADATA_INFO } from "../../../impl/metadata/metadataInfo";
 import { SFPowerkit } from "../../../sfpowerkit";
 import { LoggerLevel } from "@salesforce/core";
-import simplegit, { SimpleGit } from "simple-git/promise";
+import simplegit, { SimpleGit } from "simple-git";
 
 export interface DiffFileStatus {
   revisionFrom: string;
