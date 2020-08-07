@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>DatetimeToCronConverter</members>
+        <members>DatetimeToCronConverterTest</members>
+        <members>CreateTaskFromEmail</members>
+        <members>CreateTaskFromEmailTest</members>
+        <members>ConvertLeads</members>
+        <members>ConvertLeadsTest</members>
+        <members>MilestoneTest</members>
+        <members>BitbucketClass</members>
+        <members>TestBitbucketClass</members>
+        <members>BitbucketClass2</members>
+        <members>BitbucketClass2test</members>
+        <name>ApexClass</name>
+    </types>
+    <types>
+        <members>BitbucketPipelinesTrigger</members>
+        <members>BitbucketPipelinesTrigger2</members>
+        <name>ApexTrigger</name>
+    </types>
+    <version>48.0</version>
+</Package>

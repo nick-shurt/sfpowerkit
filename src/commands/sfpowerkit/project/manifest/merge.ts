@@ -28,12 +28,12 @@ export default class Merge extends SfdxCommand {
 
   protected static flagsConfig = {
     path: flags.array({
-      required: true,
+      required: false,
       char: "p",
       description: messages.getMessage("pathFlagDescription")
     }),
     manifest: flags.string({
-      required: true,
+      required: false,
       char: "d",
       description: messages.getMessage("manifestFlagDescription")
     }),
@@ -62,44 +62,34 @@ export default class Merge extends SfdxCommand {
   };
 
   public async run(): Promise<AnyJson> {
-    this.output = new Map<string, string[]>();
-    SFPowerkit.setLogLevel(this.flags.loglevel, this.flags.json);
+    var fs = require("fs"),
+      xml2js = require("xml2js");
 
-    this.flags.apiversion =
-      this.flags.apiversion || getDefaults.getApiVersion();
-
-    let paths = [];
-    if (this.flags.path.constructor === Array) {
-      paths = this.flags.path;
-    } else {
-      paths.push(this.flags.path);
-    }
-
-    for (const dir of paths) {
-      if (fs.existsSync(path.resolve(dir)) && path.extname(dir) == ".xml") {
-        await this.processMainfest(dir);
-      } else {
-        throw new Error(`Error : ${dir} is not valid package.xml`);
-      }
-    }
-    let metadataTypes = [];
-    for (let [key, value] of this.output) {
-      metadataTypes.push({ name: key, members: value });
-    }
-    if (metadataTypes) {
-      this.createpackagexml(metadataTypes);
-    }
-    if (!this.flags.json) {
-      let tableout = [];
-      metadataTypes.forEach(metadataType => {
-        for (let item of metadataType.members) {
-          tableout.push({ type: metadataType.name, member: item });
-        }
+    var parser = new xml2js.Parser();
+    fs.readFile("./package/package.xml", function(err, data) {
+      parser.parseString(data, function(err, result) {
+        result.Package.types.forEach(element => {
+          if (element.name == "ApexClass") {
+            element.members.forEach(cls => {
+              if (
+                cls.startsWith("Test") ||
+                cls.startsWith("test") ||
+                cls.endsWith("Test") || cls.endsWith("test")
+              ) {
+                fs.appendFile("./testsToRun/testFile.txt", cls + ",", function(
+                  err
+                ) {
+                  if (err) throw err;
+                });
+                console.log(cls);
+              }
+            });
+          }
+        });
       });
-      this.ux.table(tableout, ["type", "member"]);
-    }
+    });
 
-    return metadataTypes;
+    return null;
   }
 
   public async processMainfest(dir: string) {
