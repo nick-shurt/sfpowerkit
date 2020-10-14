@@ -55,10 +55,11 @@ export default class Diff extends SfdxCommand {
 			xml2js.parseString(data, (err, result) => {
 				if (err) { throw err; }
 				//var objArray = [];
-				console.log(result);
+				
 				result.Package.types.forEach(type => {
 					if (type.name == "CustomLabel") {
-						type.members.array.forEach(member => {
+						console.log(type);
+						type.members.forEach(member => {
 							member = undefined;
 						});
 						result.Package.types.push({members: '*', name: 'CustomLabels'});
