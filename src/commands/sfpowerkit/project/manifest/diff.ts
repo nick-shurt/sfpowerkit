@@ -66,7 +66,19 @@ export default class Diff extends SfdxCommand {
         };
 
         result.Package.types.push(labels);
-        console.log(JSON.stringify(result, null, 4));
+        
+        // convert SJON objec to XML
+        const builder = new xml2js.Builder();
+        const xml = builder.buildObject(result);
+
+        // write updated XML string to a file
+        fs.writeFile('./package/package.xml', xml, (err) => {
+            if (err) {
+                throw err;
+            }
+
+            console.log(`Updated XML is written to a new file.`);
+        });
       });
 
       /*parser.parseString(data, function(err, result) {
