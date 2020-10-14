@@ -91,46 +91,4 @@ export default class Merge extends SfdxCommand {
 
     return null;
   }
-
-  public async processMainfest(dir: string) {
-    let package_xml = await xmlUtil.xmlToJSON(dir);
-    let metadataTypes = package_xml.Package.types;
-    if (metadataTypes.constructor === Array) {
-      for (const item of metadataTypes) {
-        if (item.members.constructor === Array) {
-          this.setOutput(item.name, item.members);
-        } else {
-          this.setOutput(item.name, [item.members]);
-        }
-      }
-    } else {
-      if (metadataTypes.members.constructor === Array) {
-        this.setOutput(metadataTypes.name, metadataTypes.members);
-      } else {
-        this.setOutput(metadataTypes.name, [metadataTypes.members]);
-      }
-    }
-  }
-  public setOutput(key: string, values: string[]) {
-    let currentItems = this.output.get(key) || [];
-    values.forEach(item => {
-      if (!currentItems.includes(item)) {
-        currentItems.push(item);
-      }
-    });
-    this.output.set(key, currentItems);
-  }
-  createpackagexml(manifest: any[]) {
-    let package_xml = {
-      Package: {
-        $: { xmlns: "http://soap.sforce.com/2006/04/metadata" },
-        types: manifest,
-        version: this.flags.apiversion
-      }
-    };
-    fs.outputFileSync(
-      `${this.flags.manifest}/package.xml`,
-      xmlUtil.jSONToXML(package_xml)
-    );
-  }
 }
