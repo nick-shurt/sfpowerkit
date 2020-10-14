@@ -61,7 +61,7 @@ export default class Diff extends SfdxCommand {
 						result.Package.types.push({members: '*', name: 'CustomLabels'});
 					}
 					if (type.name == "CustomField") {
-						type.members.array.forEach(member => {
+						type.members.forEach(member => {
 							var sObject = member.substr(0, member.indexOf('.'));
 							objArray.push(sObject);
 						});
