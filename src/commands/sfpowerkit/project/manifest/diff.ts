@@ -54,23 +54,26 @@ export default class Diff extends SfdxCommand {
 
 			xml2js.parseString(data, (err, result) => {
 				if (err) { throw err; }
-				var objArray = [];
-
+				//var objArray = [];
+				console.log(result);
 				result.Package.types.forEach(type => {
 					if (type.name == "CustomLabel") {
+						type.members.array.forEach(member => {
+							member = undefined;
+						});
 						result.Package.types.push({members: '*', name: 'CustomLabels'});
 					}
-					if (type.name == "CustomField") {
+					/*if (type.name == "CustomField") {
 						type.members.forEach(member => {
 							var sObject = member.substr(0, member.indexOf('.'));
 							objArray.push(sObject);
 						});
-					}
+					}*/
 				});
 
-				if (Array.isArray(objArray) && objArray.length) {
-					result.Package.types.push({members: objArray[0], name: 'CustomObject'});
-				}
+				//if (Array.isArray(objArray) && objArray.length) {
+					//result.Package.types.push({members: objArray[0], name: 'CustomObject'});
+				//}
 
 				const builder = new xml2js.Builder();
 				const xml = builder.buildObject(result);
