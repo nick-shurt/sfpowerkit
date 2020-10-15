@@ -58,9 +58,8 @@ export default class Diff extends SfdxCommand {
 				
 				result.Package.types.forEach(type => {
 					if (type.name == "CustomLabel") {
-						console.log(type);
-						type = undefined;
-						result.Package.types.push({members: '*', name: 'CustomLabels'});
+						type.members = "*";
+						type.name = "CustomLabels";
 					}
 					/*if (type.name == "CustomField") {
 						type.members.forEach(member => {
